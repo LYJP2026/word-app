@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2f6f4f"/>
+  <text x="256" y="230" font-size="180" font-family="'Microsoft YaHei','Hiragino Sans',sans-serif" font-weight="700" fill="#ffffff" text-anchor="middle">词</text>
+  <text x="256" y="400" font-size="180" font-family="'Microsoft YaHei','Hiragino Sans',sans-serif" font-weight="700" fill="#d9f2e6" text-anchor="middle">语</text>
+</svg>

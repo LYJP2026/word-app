@@ -1,0 +1,16 @@
+{
+  "name": "小百合の単語帳",
+  "short_name": "小百合の単語帳",
+  "description": "导入自有中日对译词库，按1-7-30日间隔重复法科学复习",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#2f6f4f",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

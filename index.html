@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#2f6f4f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>小百合の単語帳</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<header class="app-header">
+  <button id="btn-back" class="icon-btn hidden" aria-label="返回">←</button>
+  <h1 id="header-title">小百合の単語帳</h1>
+  <button id="btn-header-action" class="icon-btn hidden" aria-label="操作">＋</button>
+</header>
+
+<main id="view-root" class="view-root"></main>
+
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="nav-item" data-view="dashboard">
+    <span class="nav-icon">🏠</span><span>首页</span>
+  </button>
+  <button class="nav-item" data-view="library">
+    <span class="nav-icon">📚</span><span>词库</span>
+  </button>
+  <button class="nav-item" data-view="review">
+    <span class="nav-icon">🔁</span><span>复习</span>
+    <span id="review-badge" class="badge hidden">0</span>
+  </button>
+  <button class="nav-item" data-view="stats">
+    <span class="nav-icon">📊</span><span>统计</span>
+  </button>
+  <button class="nav-item" data-view="settings">
+    <span class="nav-icon">⚙️</span><span>设置</span>
+  </button>
+</nav>
+
+<template id="tpl-card">
+  <div class="study-card" id="study-card">
+    <div class="study-card-inner">
+      <div class="study-card-face study-card-front">
+        <div class="pos-tag" id="card-pos"></div>
+        <div class="card-word" id="card-word"></div>
+        <div class="card-hint">点击卡片查看释义</div>
+      </div>
+      <div class="study-card-face study-card-back">
+        <div class="card-meaning" id="card-meaning"></div>
+        <div class="card-example" id="card-example"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="js/db.js"></script>
+<script src="js/xlsx.js"></script>
+<script src="js/scheduler.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/views/dashboard.js"></script>
+<script src="js/views/import.js"></script>
+<script src="js/views/library.js"></script>
+<script src="js/views/study.js"></script>
+<script src="js/views/review.js"></script>
+<script src="js/views/stats.js"></script>
+<script src="js/views/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
