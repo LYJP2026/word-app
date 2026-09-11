@@ -45,6 +45,58 @@
     document.body.style.overflow = '';
   }
 
+  function confirmDialog(title, message, { confirmLabel = '确定', danger = true } = {}) {
+    return new Promise((resolve) => {
+      const modal = openModal(`
+        <h3>${escapeHtml(title)}</h3>
+        <p style="color:var(--text-muted)">${escapeHtml(message)}</p>
+        <div class="btn-row">
+          <button class="btn secondary" id="confirm-cancel">取消</button>
+          <button class="btn ${danger ? 'danger' : ''}" id="confirm-ok">${escapeHtml(confirmLabel)}</button>
+        </div>
+      `);
+      modal.querySelector('#confirm-cancel').addEventListener('click', () => { closeModal(); resolve(false); });
+      modal.querySelector('#confirm-ok').addEventListener('click', () => { closeModal(); resolve(true); });
+    });
+  }
+
+  // Shared "edit an existing word" modal, used by both the library word list and
+  // the review session so delete/edit behave identically everywhere.
+  function openWordEditModal(word, { onSaved, onDeleted } = {}) {
+    const modal = openModal(`
+      <h3>编辑单词</h3>
+      <label class="field">日语单词/短语<input id="w-word" value="${escapeHtml(word.word)}"></label>
+      <label class="field">中文释义<input id="w-meaning" value="${escapeHtml(word.meaning)}"></label>
+      <label class="field">词性/备注<input id="w-pos" value="${escapeHtml(word.part_of_speech || '')}"></label>
+      <label class="field">例句<textarea id="w-example" rows="2">${escapeHtml(word.example || '')}</textarea></label>
+      <div class="btn-row">
+        <button class="btn danger" id="w-delete">删除单词</button>
+        <button class="btn" id="w-save">保存</button>
+      </div>
+    `);
+    modal.querySelector('#w-save').addEventListener('click', async () => {
+      const w = modal.querySelector('#w-word').value.trim();
+      const m = modal.querySelector('#w-meaning').value.trim();
+      const pos = modal.querySelector('#w-pos').value.trim();
+      const ex = modal.querySelector('#w-example').value.trim();
+      if (!w || !m) { toast('日语单词与中文释义为必填'); return; }
+      const patch = { word: w, meaning: m, part_of_speech: pos, example: ex };
+      await DB.updateVocabulary(word.id, patch);
+      Object.assign(word, patch);
+      closeModal();
+      toast('已保存');
+      if (onSaved) onSaved(word);
+    });
+    modal.querySelector('#w-delete').addEventListener('click', async () => {
+      closeModal();
+      const ok = await confirmDialog('删除单词', `确定要删除「${word.word}」吗？相关的复习记录也会一并删除，此操作不可撤销。`, { confirmLabel: '确定删除' });
+      if (!ok) return;
+      await DB.deleteVocabulary(word.id);
+      toast('已删除');
+      if (onDeleted) onDeleted(word);
+    });
+  }
+
   function setHeader(title, opts = {}) {
     headerTitle.textContent = title;
     if (opts.showBack) {
@@ -159,7 +211,7 @@
   }
 
   global.App = {
-    state, escapeHtml, toast, openModal, closeModal, setHeader,
+    state, escapeHtml, toast, openModal, closeModal, confirmDialog, openWordEditModal, setHeader,
     navigate, goBack, refreshBadge, render, applyTheme,
   };
 })(window);

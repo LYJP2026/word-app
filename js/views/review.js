@@ -47,14 +47,20 @@
     let index = 0;
     let correct = 0, wrong = 0;
     let flipped = false;
+    const wrongItems = [];
 
     function drawCard() {
+      if (index >= queue.length) { showSummary(); return; }
       flipped = false;
       const { word, record } = queue[index];
       root.innerHTML = `
         <div class="study-progress">第 ${index + 1} / ${queue.length} 个 &middot; ${Scheduler.levelLabel(record.review_level)}</div>
         <div class="progress-bar-track" style="margin-bottom:18px">
           <div class="progress-bar-fill" style="width:${(index / queue.length) * 100}%"></div>
+        </div>
+        <div class="btn-row" style="margin-bottom:10px">
+          <button class="chip-btn" id="btn-edit-word">✎ 编辑单词</button>
+          <button class="chip-btn" id="btn-delete-word">🗑 删除单词</button>
         </div>
         <div class="study-card" id="study-card">
           <div class="study-card-inner">
@@ -81,19 +87,36 @@
       });
       root.querySelector('#btn-yes').addEventListener('click', () => judge(true));
       root.querySelector('#btn-no').addEventListener('click', () => judge(false));
+      root.querySelector('#btn-edit-word').addEventListener('click', () => {
+        App.openWordEditModal(word, {
+          onSaved: () => drawCard(),
+          onDeleted: () => {
+            queue.splice(index, 1);
+            drawCard();
+          },
+        });
+      });
+      root.querySelector('#btn-delete-word').addEventListener('click', async () => {
+        const ok = await App.confirmDialog('删除单词', `确定要删除「${word.word}」吗？相关的复习记录也会一并删除，此操作不可撤销。`, { confirmLabel: '确定删除' });
+        if (!ok) return;
+        await DB.deleteVocabulary(word.id);
+        App.toast('已删除');
+        queue.splice(index, 1);
+        drawCard();
+      });
     }
 
     async function judge(recognized) {
-      const { word } = queue[index];
-      await DB.recordReviewOutcome(word.id, recognized);
+      const item = queue[index];
+      await DB.recordReviewOutcome(item.word.id, recognized);
       await DB.bumpDailyCounter('reviewed');
-      if (recognized) correct++; else wrong++;
+      if (recognized) correct++;
+      else { wrong++; wrongItems.push(item.word); }
       index++;
-      if (index >= queue.length) showSummary();
-      else drawCard();
+      drawCard();
     }
 
-    function showSummary() {
+    async function showSummary() {
       const total = correct + wrong;
       const rate = total ? Math.round((correct / total) * 100) : 0;
       root.innerHTML = `
@@ -105,10 +128,21 @@
             <div class="stat-tile"><div class="num">${wrong}</div><div class="label">不认识（重新学习）</div></div>
           </div>
           <div style="color:var(--text-muted);margin-bottom:18px">正确率 ${rate}%</div>
+          ${wrongItems.length > 0 ? `<button class="btn block" id="btn-retry-wrong">再次复习不熟悉的 ${wrongItems.length} 个单词</button>` : ''}
           <button class="btn secondary block" id="btn-home">返回首页</button>
         </div>
       `;
       root.querySelector('#btn-home').addEventListener('click', () => App.navigate('/dashboard'));
+      const retryBtn = root.querySelector('#btn-retry-wrong');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', async () => {
+          const retryQueue = await Promise.all(wrongItems.map(async (word) => ({
+            word,
+            record: await DB.getStudyRecord(word.id),
+          })));
+          startSession(root, retryQueue.filter((it) => it.record));
+        });
+      }
       App.refreshBadge();
     }
 

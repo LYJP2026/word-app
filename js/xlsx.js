@@ -152,33 +152,46 @@
     return rows;
   }
 
-  function resolveFirstSheetPath(workbookXml, relsXml) {
+  // Lists every <sheet> declared in workbook.xml (in workbook order), resolving
+  // each one's actual part path via workbook.xml.rels.
+  function listWorkbookSheets(workbookXml, relsXml) {
     const wDoc = new DOMParser().parseFromString(workbookXml, 'application/xml');
-    const sheetNode = wDoc.getElementsByTagName('sheet')[0];
-    if (!sheetNode) throw new Error('工作簿中没有找到任何工作表');
-    const rId = sheetNode.getAttribute('r:id') ||
-      sheetNode.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
-    let target = 'worksheets/sheet1.xml';
-    if (relsXml && rId) {
-      const rDoc = new DOMParser().parseFromString(relsXml, 'application/xml');
-      const rels = Array.from(rDoc.getElementsByTagName('Relationship'));
+    const sheetNodes = Array.from(wDoc.getElementsByTagName('sheet'));
+    if (sheetNodes.length === 0) throw new Error('工作簿中没有找到任何工作表');
+    const rDoc = relsXml ? new DOMParser().parseFromString(relsXml, 'application/xml') : null;
+    const rels = rDoc ? Array.from(rDoc.getElementsByTagName('Relationship')) : [];
+    return sheetNodes.map((sheetNode, i) => {
+      const name = sheetNode.getAttribute('name') || `Sheet${i + 1}`;
+      const rId = sheetNode.getAttribute('r:id') ||
+        sheetNode.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+      let target = `worksheets/sheet${i + 1}.xml`;
       const rel = rels.find((r) => r.getAttribute('Id') === rId);
       if (rel) target = rel.getAttribute('Target').replace(/^\/?xl\//, '').replace(/^\//, '');
-    }
-    return 'xl/' + target;
+      return { name, path: 'xl/' + target };
+    });
   }
 
-  async function parseXlsxArrayBuffer(buffer) {
+  // Opens an .xlsx ArrayBuffer once and returns a handle that can read any of its
+  // sheets on demand, without re-parsing the ZIP central directory / shared
+  // strings table for every sheet.
+  async function openXlsxWorkbook(buffer) {
     const entries = readCentralDirectory(buffer);
     const workbookXml = await readZipTextEntry(buffer, entries, 'xl/workbook.xml');
     if (!workbookXml) throw new Error('未找到 xl/workbook.xml，文件可能已损坏');
     const relsXml = await readZipTextEntry(buffer, entries, 'xl/_rels/workbook.xml.rels');
-    const sheetPath = resolveFirstSheetPath(workbookXml, relsXml);
+    const sheets = listWorkbookSheets(workbookXml, relsXml);
     const sharedStringsXml = await readZipTextEntry(buffer, entries, 'xl/sharedStrings.xml');
     const sharedStrings = parseSharedStrings(sharedStringsXml);
-    const sheetXml = await readZipTextEntry(buffer, entries, sheetPath);
-    if (!sheetXml) throw new Error('未找到工作表数据: ' + sheetPath);
-    return parseSheetXml(sheetXml, sharedStrings);
+    return {
+      sheetNames: sheets.map((s) => s.name),
+      async readSheet(index) {
+        const sheet = sheets[index];
+        if (!sheet) throw new Error('工作表不存在: ' + index);
+        const sheetXml = await readZipTextEntry(buffer, entries, sheet.path);
+        if (!sheetXml) throw new Error('未找到工作表数据: ' + sheet.path);
+        return parseSheetXml(sheetXml, sharedStrings);
+      },
+    };
   }
 
   // ---------------- CSV ----------------
@@ -357,15 +370,24 @@
   }
 
   // ---------------- Public API ----------------
-  async function parseSpreadsheetFile(file) {
+  // Opens a .csv or .xlsx file and returns a uniform handle:
+  //   { sheets: [{ name }], readSheet(index) => Promise<rows> }
+  // A .csv file always reports exactly one sheet (name derived from the filename).
+  async function openSpreadsheet(file) {
     const name = file.name || '';
     const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
     if (ext === '.csv') {
       const text = await file.text();
-      return parseCsvText(text);
+      const rows = parseCsvText(text);
+      const sheetName = name.slice(0, name.lastIndexOf('.')) || name;
+      return { sheets: [{ name: sheetName }], readSheet: async () => rows };
     } else if (ext === '.xlsx') {
       const buf = await file.arrayBuffer();
-      return parseXlsxArrayBuffer(buf);
+      const workbook = await openXlsxWorkbook(buf);
+      return {
+        sheets: workbook.sheetNames.map((n) => ({ name: n })),
+        readSheet: (index) => workbook.readSheet(index),
+      };
     } else if (ext === '.xls') {
       throw new Error('暂不支持旧版 .xls 格式，请在 Excel/WPS 中"另存为" .xlsx 或 .csv 后再导入');
     }
@@ -373,7 +395,7 @@
   }
 
   global.SpreadsheetIO = {
-    parseSpreadsheetFile,
+    openSpreadsheet,
     parseCsvText,
     buildCsvText,
     buildXlsxBlob,

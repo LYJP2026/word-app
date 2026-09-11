@@ -128,23 +128,13 @@
     });
   }
 
-  function deleteLibraryFlow(libId, name) {
+  async function deleteLibraryFlow(libId, name) {
     App.closeModal();
-    const modal = App.openModal(`
-      <h3>删除词库</h3>
-      <p style="color:var(--text-muted)">确定要删除词库「${App.escapeHtml(name)}」吗？其中的所有单词和学习记录都将被永久删除，此操作不可撤销。</p>
-      <div class="btn-row">
-        <button class="btn secondary" id="del-cancel">取消</button>
-        <button class="btn danger" id="del-confirm">确定删除</button>
-      </div>
-    `);
-    modal.querySelector('#del-cancel').addEventListener('click', () => App.closeModal());
-    modal.querySelector('#del-confirm').addEventListener('click', async () => {
-      await DB.deleteLibrary(libId);
-      App.closeModal();
-      App.toast('已删除词库');
-      App.render();
-    });
+    const ok = await App.confirmDialog('删除词库', `确定要删除词库「${name}」吗？其中的所有单词和学习记录都将被永久删除，此操作不可撤销。`, { confirmLabel: '确定删除' });
+    if (!ok) return;
+    await DB.deleteLibrary(libId);
+    App.toast('已删除词库');
+    App.render();
   }
 
   // ---------------- Word list within a library ----------------
@@ -214,7 +204,7 @@
         selected.clear();
         draw();
       });
-      root.querySelector('#btn-add-word').addEventListener('click', () => openWordEditor(null));
+      root.querySelector('#btn-add-word').addEventListener('click', () => openNewWordModal());
 
       const batchDeleteBtn = root.querySelector('#btn-batch-delete');
       if (batchDeleteBtn) {
@@ -241,8 +231,20 @@
         const id = Number(row.dataset.id);
         const editBtn = row.querySelector('[data-action="edit"]');
         const delBtn = row.querySelector('[data-action="delete"]');
-        if (editBtn) editBtn.addEventListener('click', () => openWordEditor(words.find((w) => w.id === id)));
+        if (editBtn) editBtn.addEventListener('click', () => {
+          const word = words.find((w) => w.id === id);
+          App.openWordEditModal(word, {
+            onSaved: () => draw(),
+            onDeleted: (deleted) => {
+              words = words.filter((w) => w.id !== deleted.id);
+              draw();
+            },
+          });
+        });
         if (delBtn) delBtn.addEventListener('click', async () => {
+          const word = words.find((w) => w.id === id);
+          const ok = await App.confirmDialog('删除单词', `确定要删除「${word.word}」吗？相关的复习记录也会一并删除，此操作不可撤销。`, { confirmLabel: '确定删除' });
+          if (!ok) return;
           await DB.deleteVocabulary(id);
           words = words.filter((w) => w.id !== id);
           App.toast('已删除');
@@ -251,14 +253,13 @@
       });
     }
 
-    function openWordEditor(word) {
-      const isNew = !word;
+    function openNewWordModal() {
       const modal = App.openModal(`
-        <h3>${isNew ? '添加单词' : '编辑单词'}</h3>
-        <label class="field">日语单词/短语<input id="f-word" value="${isNew ? '' : App.escapeHtml(word.word)}"></label>
-        <label class="field">中文释义<input id="f-meaning" value="${isNew ? '' : App.escapeHtml(word.meaning)}"></label>
-        <label class="field">词性/备注<input id="f-pos" value="${isNew ? '' : App.escapeHtml(word.part_of_speech || '')}"></label>
-        <label class="field">例句<textarea id="f-example" rows="2">${isNew ? '' : App.escapeHtml(word.example || '')}</textarea></label>
+        <h3>添加单词</h3>
+        <label class="field">日语单词/短语<input id="f-word"></label>
+        <label class="field">中文释义<input id="f-meaning"></label>
+        <label class="field">词性/备注<input id="f-pos"></label>
+        <label class="field">例句<textarea id="f-example" rows="2"></textarea></label>
         <button class="btn block" id="f-save">保存</button>
       `);
       modal.querySelector('#f-save').addEventListener('click', async () => {
@@ -267,13 +268,8 @@
         const pos = modal.querySelector('#f-pos').value.trim();
         const ex = modal.querySelector('#f-example').value.trim();
         if (!w || !m) { App.toast('日语单词与中文释义为必填'); return; }
-        if (isNew) {
-          const id = await DB.addVocabulary(libId, { word: w, meaning: m, part_of_speech: pos, example: ex });
-          words.push({ id, word: w, meaning: m, part_of_speech: pos, example: ex, library_id: libId });
-        } else {
-          await DB.updateVocabulary(word.id, { word: w, meaning: m, part_of_speech: pos, example: ex });
-          Object.assign(word, { word: w, meaning: m, part_of_speech: pos, example: ex });
-        }
+        const id = await DB.addVocabulary(libId, { word: w, meaning: m, part_of_speech: pos, example: ex });
+        words.push({ id, word: w, meaning: m, part_of_speech: pos, example: ex, library_id: libId });
         App.closeModal();
         App.toast('已保存');
         draw();

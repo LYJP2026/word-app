@@ -70,6 +70,13 @@
     return id;
   }
 
+  async function getOrCreateLibraryByName(name) {
+    const libraries = await listLibraries();
+    const existing = libraries.find((l) => l.name === name);
+    if (existing) return existing.id;
+    return createLibrary(name);
+  }
+
   async function listLibraries() {
     const t = await tx('libraries', 'readonly');
     return reqToPromise(t.objectStore('libraries').getAll());
@@ -333,7 +340,7 @@
 
   global.DB = {
     todayStr, addDays, nowISO,
-    createLibrary, listLibraries, getLibrary, renameLibrary, deleteLibrary,
+    createLibrary, getOrCreateLibraryByName, listLibraries, getLibrary, renameLibrary, deleteLibrary,
     addVocabulary, bulkAddVocabulary, listVocabulary, getVocabularyItem, updateVocabulary,
     deleteVocabulary, deleteVocabularyBulk, clearLibraryVocabulary,
     getStudyRecord, getAllStudyRecords, putStudyRecord, recordInitialLearning, recordReviewOutcome,
