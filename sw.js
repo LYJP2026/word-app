@@ -1,4 +1,4 @@
-const CACHE_NAME = 'word-app-cache-v8';
+const CACHE_NAME = 'word-app-cache-v11';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const PRECACHE_URLS = [
   './js/views/import.js',
   './js/views/library.js',
   './js/views/study.js',
+  './js/views/selfstudy.js',
   './js/views/review.js',
   './js/views/stats.js',
   './js/views/settings.js',

@@ -79,12 +79,15 @@
             <div class="study-card-inner">
               <div class="study-card-face study-card-front">
                 <div class="pos-tag">${App.escapeHtml(word.part_of_speech || '')}</div>
-                <div class="card-word">${App.escapeHtml(word.word)}</div>
+                <div class="card-word-row">
+                  <div class="card-word">${App.escapeHtml(word.word)}</div>
+                  <button class="speak-btn" data-speak-text="${App.escapeHtml(word.word)}" aria-label="朗读单词">🔊</button>
+                </div>
                 <div class="card-hint">先回忆，再点击卡片查看释义</div>
               </div>
               <div class="study-card-face study-card-back">
                 <div class="card-meaning">${App.escapeHtml(word.meaning)}</div>
-                ${word.example ? `<div class="card-example">${App.escapeHtml(word.example)}</div>` : ''}
+                ${word.example ? `<div class="card-example"><span>${App.escapeHtml(word.example)}</span><button class="speak-btn small" data-speak-text="${App.escapeHtml(word.example)}" aria-label="朗读例句">🔊</button></div>` : ''}
               </div>
             </div>
           </div>
@@ -98,6 +101,7 @@
           flipped = !flipped;
           cardEl.classList.toggle('flipped', flipped);
         });
+        App.bindSpeakButtons(root);
         root.querySelector('#btn-yes').addEventListener('click', () => judge(true));
         root.querySelector('#btn-no').addEventListener('click', () => judge(false));
         root.querySelector('#btn-edit-word').addEventListener('click', () => {

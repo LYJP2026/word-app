@@ -181,7 +181,7 @@
             <div class="word-row" data-id="${w.id}">
               ${selectMode ? `<input type="checkbox" class="word-check" ${selected.has(w.id) ? 'checked' : ''}>` : ''}
               <div class="word-main">
-                <div class="word-jp">${App.escapeHtml(w.word)} ${w.part_of_speech ? `<span class="level-chip">${App.escapeHtml(w.part_of_speech)}</span>` : ''}</div>
+                <div class="word-jp">${App.escapeHtml(w.word)} <button class="speak-btn small" data-speak-text="${App.escapeHtml(w.word)}" aria-label="朗读单词">🔊</button> ${w.part_of_speech ? `<span class="level-chip">${App.escapeHtml(w.part_of_speech)}</span>` : ''}</div>
                 <div class="word-cn">${App.escapeHtml(w.meaning)}</div>
               </div>
               ${levelChipHtml(w)}
@@ -194,6 +194,7 @@
         </div>
       `;
 
+      App.bindSpeakButtons(root);
       root.querySelector('#search-input').addEventListener('input', (e) => {
         searchTerm = e.target.value;
         draw();

@@ -295,7 +295,26 @@ label.field input, label.field select, label.field textarea { margin-top: 6px; }
   min-height: 20px;
 }
 .card-meaning { font-size: 26px; font-weight: 700; }
-.card-example { margin-top: 14px; font-size: 14px; color: var(--text-muted); }
+.card-example { margin-top: 14px; font-size: 14px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+.card-word-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.speak-btn {
+  border: none;
+  background: var(--surface-alt);
+  color: var(--primary);
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.speak-btn:active { background: var(--border); }
+.speak-btn.small { width: 26px; height: 26px; min-width: 26px; font-size: 13px; }
 
 .judge-row { display: flex; gap: 12px; }
 .judge-btn {

@@ -28,6 +28,30 @@
     setTimeout(() => el.remove(), duration);
   }
 
+  function speak(text, lang = 'ja-JP') {
+    if (!text) return;
+    if (!('speechSynthesis' in window)) {
+      toast('当前设备不支持语音朗读');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    window.speechSynthesis.speak(utter);
+  }
+
+  // Wires up every [data-speak-text] button within `root` to read its text
+  // aloud on click, without also triggering an ancestor's click handler
+  // (e.g. a study card's flip-on-click).
+  function bindSpeakButtons(root) {
+    root.querySelectorAll('[data-speak-text]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        speak(btn.dataset.speakText, btn.dataset.speakLang || 'ja-JP');
+      });
+    });
+  }
+
   function openModal(innerHtml) {
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
@@ -154,6 +178,7 @@
     dashboard: 'dashboard',
     library: 'library',
     study: 'study',
+    selfstudy: 'selfstudy',
     review: 'review',
     stats: 'stats',
     settings: 'settings',
@@ -163,7 +188,7 @@
   async function render() {
     closeModal();
     const { top, segs, query } = parseHash();
-    highlightNav(['dashboard', 'library', 'review', 'stats', 'settings'].includes(top) ? top : null);
+    highlightNav(['dashboard', 'library', 'selfstudy', 'review', 'stats', 'settings'].includes(top) ? top : null);
     const viewKey = VIEW_MAP[top] || 'dashboard';
     const view = global.Views[viewKey];
     setHeader('小百合の単語帳');
@@ -212,6 +237,6 @@
 
   global.App = {
     state, escapeHtml, toast, openModal, closeModal, confirmDialog, openWordEditModal, setHeader,
-    navigate, goBack, refreshBadge, render, applyTheme,
+    navigate, goBack, refreshBadge, render, applyTheme, speak, bindSpeakButtons,
   };
 })(window);

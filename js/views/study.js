@@ -98,9 +98,28 @@
         const shuffle = root.querySelector('#shuffle-check').checked;
         let pool = newWords.slice(0, count);
         if (shuffle) pool = shuffleArray(newWords).slice(0, count);
-        startSession(root, libId, pool);
+        showDirectionModal(root, libId, pool);
       });
     }
+  }
+
+  // Asked every time right before a session starts: which side of the card
+  // should appear first.
+  function showDirectionModal(root, libId, pool) {
+    const modal = App.openModal(`
+      <h3>选择学习方向</h3>
+      <p style="color:var(--text-muted);margin-bottom:16px">选择卡片正面先显示哪种语言</p>
+      <button class="btn block" id="dir-jp2cn">和文中訳（先显示日语，翻译成中文）</button>
+      <button class="btn secondary block" id="dir-cn2jp">中文和訳（先显示中文，翻译成日语）</button>
+    `);
+    modal.querySelector('#dir-jp2cn').addEventListener('click', () => {
+      App.closeModal();
+      startSession(root, libId, pool, 'jp2cn');
+    });
+    modal.querySelector('#dir-cn2jp').addEventListener('click', () => {
+      App.closeModal();
+      startSession(root, libId, pool, 'cn2jp');
+    });
   }
 
   function shuffleArray(arr) {
@@ -112,7 +131,7 @@
     return a;
   }
 
-  function startSession(root, libId, queue) {
+  function startSession(root, libId, queue, direction = 'jp2cn') {
     let index = 0;
     let correct = 0, wrong = 0;
     let flipped = false;
@@ -121,6 +140,19 @@
     function drawCard() {
       flipped = false;
       const word = queue[index];
+      const jpFaceHtml = `
+        <div class="pos-tag">${App.escapeHtml(word.part_of_speech || '')}</div>
+        <div class="card-word-row">
+          <div class="card-word">${App.escapeHtml(word.word)}</div>
+          <button class="speak-btn" data-speak-text="${App.escapeHtml(word.word)}" aria-label="朗读单词">🔊</button>
+        </div>
+        ${word.example ? `<div class="card-example"><span>${App.escapeHtml(word.example)}</span><button class="speak-btn small" data-speak-text="${App.escapeHtml(word.example)}" aria-label="朗读例句">🔊</button></div>` : ''}
+      `;
+      const cnFaceHtml = `<div class="card-meaning">${App.escapeHtml(word.meaning)}</div>`;
+      const frontHtml = direction === 'cn2jp'
+        ? `${cnFaceHtml}<div class="card-hint">点击卡片查看日语</div>`
+        : `${jpFaceHtml}<div class="card-hint">点击卡片查看释义</div>`;
+      const backHtml = direction === 'cn2jp' ? jpFaceHtml : cnFaceHtml;
       root.innerHTML = `
         <div class="study-progress">第 ${index + 1} / ${queue.length} 个</div>
         <div class="progress-bar-track" style="margin-bottom:18px">
@@ -128,15 +160,8 @@
         </div>
         <div class="study-card" id="study-card">
           <div class="study-card-inner">
-            <div class="study-card-face study-card-front">
-              <div class="pos-tag">${App.escapeHtml(word.part_of_speech || '')}</div>
-              <div class="card-word">${App.escapeHtml(word.word)}</div>
-              <div class="card-hint">点击卡片查看释义</div>
-            </div>
-            <div class="study-card-face study-card-back">
-              <div class="card-meaning">${App.escapeHtml(word.meaning)}</div>
-              ${word.example ? `<div class="card-example">${App.escapeHtml(word.example)}</div>` : ''}
-            </div>
+            <div class="study-card-face study-card-front">${frontHtml}</div>
+            <div class="study-card-face study-card-back">${backHtml}</div>
           </div>
         </div>
         <div class="judge-row">
@@ -149,6 +174,7 @@
         flipped = !flipped;
         cardEl.classList.toggle('flipped', flipped);
       });
+      App.bindSpeakButtons(root);
       root.querySelector('#btn-yes').addEventListener('click', () => judge(true));
       root.querySelector('#btn-no').addEventListener('click', () => judge(false));
     }
