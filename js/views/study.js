@@ -2,22 +2,60 @@
   global.Views = global.Views || {};
 
   async function render(root, { query }) {
-    App.setHeader('学习模式', { showBack: true });
     const libraries = await DB.listLibraries();
     let libId = Number(query.get('lib')) || null;
 
     if (libraries.length === 0) {
+      App.setHeader('学习模式', { showBack: true });
       root.innerHTML = `<div class="empty-state"><div class="emoji">📚</div><p>请先导入一个词库</p>
         <button class="btn" id="go-import">导入词库</button></div>`;
       root.querySelector('#go-import').addEventListener('click', () => App.navigate('/import'));
       return;
     }
-    if (!libId) libId = libraries[0].id;
+
+    if (!libId) {
+      if (libraries.length === 1) {
+        libId = libraries[0].id;
+      } else {
+        return renderLibraryPicker(root, libraries);
+      }
+    }
 
     await renderSetup(root, libId, libraries);
   }
 
+  // Asked up front whenever the user has more than one library and hasn't
+  // already picked one (e.g. via the dashboard's generic "学习新单词" entry).
+  async function renderLibraryPicker(root, libraries) {
+    App.setHeader('选择要学习的词库', { showBack: true });
+    const cards = await Promise.all(libraries.map(async (lib) => {
+      const words = await DB.listVocabulary(lib.id);
+      const records = await DB.getAllStudyRecords(lib.id);
+      const learnedIds = new Set(records.map((r) => r.vocabulary_id));
+      const newCount = words.filter((w) => !learnedIds.has(w.id)).length;
+      return { lib, total: words.length, newCount };
+    }));
+
+    root.innerHTML = `
+      <div class="section-title">选择要学习的词库</div>
+      ${cards.map(({ lib, total, newCount }) => `
+        <div class="card" data-lib-id="${lib.id}" style="cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0">${App.escapeHtml(lib.name)}</h3>
+            <span style="color:var(--text-muted);font-size:13px">›</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:6px">共 ${total} 词 · ${newCount} 个尚未学习</div>
+        </div>
+      `).join('')}
+    `;
+
+    root.querySelectorAll('.card[data-lib-id]').forEach((card) => {
+      card.addEventListener('click', () => App.navigate('/study?lib=' + card.dataset.libId));
+    });
+  }
+
   async function renderSetup(root, libId, libraries) {
+    App.setHeader('学习模式', { showBack: true });
     const words = await DB.listVocabulary(libId);
     const records = await DB.getAllStudyRecords(libId);
     const learnedIds = new Set(records.map((r) => r.vocabulary_id));
@@ -78,6 +116,7 @@
     let index = 0;
     let correct = 0, wrong = 0;
     let flipped = false;
+    const wrongWords = [];
 
     function drawCard() {
       flipped = false;
@@ -118,7 +157,7 @@
       const word = queue[index];
       await DB.recordInitialLearning(word, recognized);
       await DB.bumpDailyCounter('learned');
-      if (recognized) correct++; else wrong++;
+      if (recognized) correct++; else { wrong++; wrongWords.push(word); }
       index++;
       if (index >= queue.length) {
         showSummary();
@@ -139,10 +178,22 @@
             <div class="stat-tile"><div class="num">${wrong}</div><div class="label">不认识</div></div>
           </div>
           <div style="color:var(--text-muted);margin-bottom:18px">正确率 ${rate}%，明天开始进入第一次复习</div>
-          <button class="btn block" id="btn-again">再学一组</button>
+          ${wrongWords.length > 0 ? `<button class="btn block" id="btn-review-now">马上复习不认识的 ${wrongWords.length} 个单词</button>` : ''}
+          <button class="btn ${wrongWords.length > 0 ? 'secondary' : ''} block" id="btn-again">再学一组</button>
           <button class="btn secondary block" id="btn-lib">返回词库</button>
         </div>
       `;
+      const reviewNowBtn = root.querySelector('#btn-review-now');
+      if (reviewNowBtn) {
+        reviewNowBtn.addEventListener('click', async () => {
+          App.setHeader('马上复习', { showBack: true });
+          const reviewQueue = await Promise.all(wrongWords.map(async (w) => ({
+            word: w,
+            record: await DB.getStudyRecord(w.id),
+          })));
+          Views.review.startReviewFlow(root, reviewQueue.filter((it) => it.record));
+        });
+      }
       root.querySelector('#btn-again').addEventListener('click', () => App.navigate('/study?lib=' + libId));
       root.querySelector('#btn-lib').addEventListener('click', () => App.navigate('/library/words?lib=' + libId));
       App.refreshBadge();
