@@ -1,4 +1,4 @@
-const CACHE_NAME = 'word-app-cache-v17';
+const CACHE_NAME = 'word-app-cache-v18';
 const PRECACHE_URLS = [
   './',
   './index.html',

@@ -146,7 +146,7 @@
         primarySpeak: word.word,
         secondaryText: word.example,
         secondarySpeak: word.example,
-        hint: direction === 'cn2jp' ? '点击卡片回到中文' : '点击卡片查看释义',
+        hint: direction === 'cn2jp' ? '点击卡片回到中文' : '点击卡片查看中文',
       });
       const cnFaceHtml = App.buildFlashcardFace({
         primaryText: word.meaning,
