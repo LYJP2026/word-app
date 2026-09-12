@@ -90,7 +90,7 @@
 
   async function exportLibrary(libId, name, format) {
     const words = await DB.listVocabulary(libId);
-    const rows = [['日语单词', '中文释义', '词性/备注', '例句'],
+    const rows = [['日语单词', '中文释义', '词性/备注', '日本語の定義'],
       ...words.map((w) => [w.word, w.meaning, w.part_of_speech || '', w.example || ''])];
     let blob, filename;
     if (format === 'xlsx') {
@@ -182,7 +182,7 @@
               ${selectMode ? `<input type="checkbox" class="word-check" ${selected.has(w.id) ? 'checked' : ''}>` : ''}
               <div class="word-main">
                 <div class="word-jp">${App.escapeHtml(w.word)} <button class="speak-btn small" data-speak-text="${App.escapeHtml(w.word)}" aria-label="朗读单词">🔊</button> ${w.part_of_speech ? `<span class="level-chip">${App.escapeHtml(w.part_of_speech)}</span>` : ''}</div>
-                <div class="word-cn">${App.escapeHtml(w.meaning)}</div>
+                <div class="word-cn">${App.escapeHtml(w.meaning)} <button class="speak-btn small" data-speak-text="${App.escapeHtml(w.meaning)}" data-speak-lang="zh-CN" aria-label="朗读中文">🔊</button></div>
               </div>
               ${levelChipHtml(w)}
               ${!selectMode ? `<div class="word-actions">
@@ -260,7 +260,7 @@
         <label class="field">日语单词/短语<input id="f-word"></label>
         <label class="field">中文释义<input id="f-meaning"></label>
         <label class="field">词性/备注<input id="f-pos"></label>
-        <label class="field">例句<textarea id="f-example" rows="2"></textarea></label>
+        <label class="field">日本語の定義<textarea id="f-example" rows="2"></textarea></label>
         <button class="btn block" id="f-save">保存</button>
       `);
       modal.querySelector('#f-save').addEventListener('click', async () => {

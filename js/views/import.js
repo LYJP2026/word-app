@@ -6,7 +6,7 @@
     { value: 'word', label: '日语单词/短语' },
     { value: 'meaning', label: '中文释义' },
     { value: 'part_of_speech', label: '词性/备注' },
-    { value: 'example', label: '例句' },
+    { value: 'example', label: '日本語の定義' },
   ];
 
   function guessMapping(colIndex) {

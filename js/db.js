@@ -210,6 +210,7 @@
   // Mark a word as learned today (initial learning session): sets level 1, study_date = today
   async function recordInitialLearning(vocabularyItem, recognized) {
     const existing = await getStudyRecord(vocabularyItem.id);
+    const isFirstTime = !existing;
     const today = todayStr();
     const record = existing || {
       vocabulary_id: vocabularyItem.id,
@@ -224,6 +225,11 @@
     record.next_review_date = todayStr(1);
     if (recognized) record.correct_count = (record.correct_count || 0) + 1;
     else record.wrong_count = (record.wrong_count || 0) + 1;
+    // Only ever set on the very first time this word is learned — this is
+    // what drives "自习" (self-study), which should only ever offer words the
+    // user got wrong on their first exposure, regardless of what happens to
+    // them afterwards in official review.
+    if (isFirstTime) record.initially_wrong = !recognized;
     await putStudyRecord(record);
     return record;
   }

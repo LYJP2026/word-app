@@ -140,18 +140,21 @@
     function drawCard() {
       flipped = false;
       const word = queue[index];
-      const jpFaceHtml = `
-        <div class="pos-tag">${App.escapeHtml(word.part_of_speech || '')}</div>
-        <div class="card-word-row">
-          <div class="card-word">${App.escapeHtml(word.word)}</div>
-          <button class="speak-btn" data-speak-text="${App.escapeHtml(word.word)}" aria-label="朗读单词">🔊</button>
-        </div>
-        ${word.example ? `<div class="card-example"><span>${App.escapeHtml(word.example)}</span><button class="speak-btn small" data-speak-text="${App.escapeHtml(word.example)}" aria-label="朗读例句">🔊</button></div>` : ''}
-      `;
-      const cnFaceHtml = `<div class="card-meaning">${App.escapeHtml(word.meaning)}</div>`;
-      const frontHtml = direction === 'cn2jp'
-        ? `${cnFaceHtml}<div class="card-hint">点击卡片查看日语</div>`
-        : `${jpFaceHtml}<div class="card-hint">点击卡片查看释义</div>`;
+      const jpFaceHtml = App.buildFlashcardFace({
+        topTag: word.part_of_speech,
+        primaryText: word.word,
+        primarySpeak: word.word,
+        secondaryText: word.example,
+        secondarySpeak: word.example,
+        hint: direction === 'cn2jp' ? '点击卡片回到中文' : '点击卡片查看释义',
+      });
+      const cnFaceHtml = App.buildFlashcardFace({
+        primaryText: word.meaning,
+        primarySpeak: word.meaning,
+        primarySpeakLang: 'zh-CN',
+        hint: direction === 'cn2jp' ? '点击卡片查看日语' : '点击卡片回到日语',
+      });
+      const frontHtml = direction === 'cn2jp' ? cnFaceHtml : jpFaceHtml;
       const backHtml = direction === 'cn2jp' ? jpFaceHtml : cnFaceHtml;
       root.innerHTML = `
         <div class="study-progress">第 ${index + 1} / ${queue.length} 个</div>

@@ -52,6 +52,31 @@
     });
   }
 
+  // Shared markup for one face of a flashcard (study / self-study / review all
+  // use this so the layout, spacing and hint placement stay consistent):
+  // a top slot for a small tag, a centered primary line (with an optional
+  // pronunciation button), an optional secondary "definition/example" box,
+  // and a bottom hint pill describing what tapping the card will do next.
+  function buildFlashcardFace({
+    topTag, primaryText, primarySpeak, primarySpeakLang = 'ja-JP',
+    secondaryText, secondarySpeak, secondarySpeakLang = 'ja-JP', hint,
+  }) {
+    return `
+      <div class="card-face-top">${topTag ? `<span class="pos-tag">${escapeHtml(topTag)}</span>` : ''}</div>
+      <div class="card-face-main">
+        <div class="card-primary-row">
+          <span class="card-primary-text">${escapeHtml(primaryText)}</span>
+          ${primarySpeak ? `<button class="speak-btn" data-speak-text="${escapeHtml(primarySpeak)}" data-speak-lang="${primarySpeakLang}" aria-label="朗读">🔊</button>` : ''}
+        </div>
+        ${secondaryText ? `<div class="card-secondary-box">
+          <span>${escapeHtml(secondaryText)}</span>
+          ${secondarySpeak ? `<button class="speak-btn small" data-speak-text="${escapeHtml(secondarySpeak)}" data-speak-lang="${secondarySpeakLang}" aria-label="朗读">🔊</button>` : ''}
+        </div>` : ''}
+      </div>
+      <div class="card-face-bottom">${hint ? `<span class="card-hint">${escapeHtml(hint)}</span>` : ''}</div>
+    `;
+  }
+
   function openModal(innerHtml) {
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
@@ -92,7 +117,7 @@
       <label class="field">日语单词/短语<input id="w-word" value="${escapeHtml(word.word)}"></label>
       <label class="field">中文释义<input id="w-meaning" value="${escapeHtml(word.meaning)}"></label>
       <label class="field">词性/备注<input id="w-pos" value="${escapeHtml(word.part_of_speech || '')}"></label>
-      <label class="field">例句<textarea id="w-example" rows="2">${escapeHtml(word.example || '')}</textarea></label>
+      <label class="field">日本語の定義<textarea id="w-example" rows="2">${escapeHtml(word.example || '')}</textarea></label>
       <div class="btn-row">
         <button class="btn danger" id="w-delete">删除单词</button>
         <button class="btn" id="w-save">保存</button>
@@ -237,6 +262,6 @@
 
   global.App = {
     state, escapeHtml, toast, openModal, closeModal, confirmDialog, openWordEditModal, setHeader,
-    navigate, goBack, refreshBadge, render, applyTheme, speak, bindSpeakButtons,
+    navigate, goBack, refreshBadge, render, applyTheme, speak, bindSpeakButtons, buildFlashcardFace,
   };
 })(window);

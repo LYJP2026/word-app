@@ -1,7 +1,10 @@
-// "自习" (self-study): lets the user freely re-practice any word they've
-// already learned, any time, as many times as they like. Unlike "复习", this
-// never reads or writes review_level / study_date / next_review_date, so it
-// never affects the official Ebbinghaus 1-7-30 schedule.
+// "自习" (self-study): lets the user freely re-practice, any time and as many
+// times as they like, exactly the words they marked "不认识" the very first
+// time they studied them in "学习新单词" (see DB.recordInitialLearning's
+// `initially_wrong` flag — set once, on first exposure, and never changed
+// afterwards regardless of later review outcomes). Unlike "复习", this never
+// reads or writes review_level / study_date / next_review_date, so it never
+// affects the official Ebbinghaus 1-7-30 schedule.
 (function (global) {
   global.Views = global.Views || {};
 
@@ -22,41 +25,42 @@
     return renderPicker(root, libraries);
   }
 
-  async function getLearnedWords(libId) {
+  async function getWeakWords(libId) {
     const [words, records] = await Promise.all([DB.listVocabulary(libId), DB.getAllStudyRecords(libId)]);
-    const learnedIds = new Set(records.map((r) => r.vocabulary_id));
-    return words.filter((w) => learnedIds.has(w.id));
+    const weakIds = new Set(records.filter((r) => r.initially_wrong).map((r) => r.vocabulary_id));
+    return words.filter((w) => weakIds.has(w.id));
   }
 
   async function renderPicker(root, libraries) {
     App.setHeader('自习', { showBack: false });
     const cards = await Promise.all(libraries.map(async (lib) => {
-      const learned = await getLearnedWords(lib.id);
-      return { lib, learnedCount: learned.length };
+      const weak = await getWeakWords(lib.id);
+      return { lib, weakCount: weak.length };
     }));
-    const totalLearned = cards.reduce((sum, c) => sum + c.learnedCount, 0);
+    const totalWeak = cards.reduce((sum, c) => sum + c.weakCount, 0);
 
-    if (totalLearned === 0) {
-      root.innerHTML = `<div class="empty-state"><div class="emoji">📝</div><p>还没有已学的单词，先去学习新单词吧</p>
-        <button class="btn" id="go-study">去学习</button></div>`;
+    if (totalWeak === 0) {
+      root.innerHTML = `<div class="empty-state"><div class="emoji">📝</div><p>暂无可自习的单词</p>
+        <div style="color:var(--text-muted);font-size:13px">自习只收录你在"学习新单词"时第一次就标记为"不认识"的单词，去学一批新词试试吧</div>
+        <button class="btn secondary block" style="margin-top:16px" id="go-study">去学习新单词</button></div>`;
       root.querySelector('#go-study').addEventListener('click', () => App.navigate('/study'));
       return;
     }
 
     root.innerHTML = `
-      <div style="font-size:12px;color:var(--text-muted);margin:0 4px 14px">自习不受复习计划的时间限制，可以随时练习任意已学过的单词，也可以反复重来；判断结果不会影响"复习"页的正式进度安排。</div>
+      <div style="font-size:12px;color:var(--text-muted);margin:0 4px 14px">自习只收录你在"学习新单词"时第一次就标记为"不认识"的单词，可随时反复练习；判断结果不会影响"复习"页的正式进度安排。</div>
       <div class="card" id="all-libs-card" style="cursor:pointer">
         <h3 style="margin:0">全部词库</h3>
-        <div style="font-size:13px;color:var(--text-muted);margin-top:6px">共 ${totalLearned} 个已学单词</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:6px">共 ${totalWeak} 个待自习单词</div>
       </div>
       <div class="section-title">按词库自习</div>
-      ${cards.filter((c) => c.learnedCount > 0).map(({ lib, learnedCount }) => `
+      ${cards.filter((c) => c.weakCount > 0).map(({ lib, weakCount }) => `
         <div class="card" data-lib-id="${lib.id}" style="cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <h3 style="margin:0">${App.escapeHtml(lib.name)}</h3>
             <span style="color:var(--text-muted);font-size:13px">›</span>
           </div>
-          <div style="font-size:13px;color:var(--text-muted);margin-top:6px">${learnedCount} 个已学单词</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:6px">${weakCount} 个待自习单词</div>
         </div>
       `).join('')}
     `;
@@ -73,15 +77,15 @@
 
     let words;
     if (libId) {
-      words = await getLearnedWords(libId);
+      words = await getWeakWords(libId);
     } else {
       const libraries = await DB.listLibraries();
       words = [];
-      for (const lib of libraries) words.push(...(await getLearnedWords(lib.id)));
+      for (const lib of libraries) words.push(...(await getWeakWords(lib.id)));
     }
 
     if (words.length === 0) {
-      root.innerHTML = `<div class="empty-state"><div class="emoji">📝</div><p>该词库暂无已学的单词</p>
+      root.innerHTML = `<div class="empty-state"><div class="emoji">📝</div><p>该词库暂无待自习的单词</p>
         <button class="btn secondary" id="go-back">返回</button></div>`;
       root.querySelector('#go-back').addEventListener('click', () => App.navigate('/selfstudy'));
       return;
@@ -89,7 +93,7 @@
 
     root.innerHTML = `
       <div class="card">
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">共 ${words.length} 个已学单词可供自习</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">共 ${words.length} 个待自习单词（首次学习时标记为"不认识"）</div>
         <label class="field">本次自习数量
           <input id="count-input" type="number" min="1" max="${words.length}" value="${words.length}">
         </label>
@@ -130,6 +134,20 @@
       if (index >= queue.length) { showSummary(); return; }
       flipped = false;
       const word = queue[index];
+      const jpFaceHtml = App.buildFlashcardFace({
+        topTag: word.part_of_speech,
+        primaryText: word.word,
+        primarySpeak: word.word,
+        secondaryText: word.example,
+        secondarySpeak: word.example,
+        hint: '点击卡片查看释义',
+      });
+      const cnFaceHtml = App.buildFlashcardFace({
+        primaryText: word.meaning,
+        primarySpeak: word.meaning,
+        primarySpeakLang: 'zh-CN',
+        hint: '点击卡片回到日语',
+      });
       root.innerHTML = `
         <div class="study-progress">第 ${index + 1} / ${queue.length} 个</div>
         <div class="progress-bar-track" style="margin-bottom:18px">
@@ -141,18 +159,8 @@
         </div>
         <div class="study-card" id="study-card">
           <div class="study-card-inner">
-            <div class="study-card-face study-card-front">
-              <div class="pos-tag">${App.escapeHtml(word.part_of_speech || '')}</div>
-              <div class="card-word-row">
-                <div class="card-word">${App.escapeHtml(word.word)}</div>
-                <button class="speak-btn" data-speak-text="${App.escapeHtml(word.word)}" aria-label="朗读单词">🔊</button>
-              </div>
-              <div class="card-hint">点击卡片查看释义</div>
-            </div>
-            <div class="study-card-face study-card-back">
-              <div class="card-meaning">${App.escapeHtml(word.meaning)}</div>
-              ${word.example ? `<div class="card-example"><span>${App.escapeHtml(word.example)}</span><button class="speak-btn small" data-speak-text="${App.escapeHtml(word.example)}" aria-label="朗读例句">🔊</button></div>` : ''}
-            </div>
+            <div class="study-card-face study-card-front">${jpFaceHtml}</div>
+            <div class="study-card-face study-card-back">${cnFaceHtml}</div>
           </div>
         </div>
         <div class="judge-row">
