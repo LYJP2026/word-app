@@ -5,16 +5,14 @@
     { value: 'ignore', label: '忽略此列' },
     { value: 'word', label: '日语单词/短语' },
     { value: 'meaning', label: '中文释义' },
-    { value: 'part_of_speech', label: '词性/备注' },
-    { value: 'example', label: '日本語の定義' },
+    { value: 'example', label: '日语定义' },
   ];
 
   function guessMapping(colIndex) {
-    return ['word', 'meaning', 'part_of_speech', 'example'][colIndex] || 'ignore';
+    return ['word', 'meaning', 'example'][colIndex] || 'ignore';
   }
 
-  function fieldMapSectionHtml(rows) {
-    const colCount = Math.max(...rows.map((r) => r.length), 1);
+  function previewTableHtml(rows, colCount) {
     const previewRows = rows.slice(0, 6);
     return `
       <div class="table-scroll">
@@ -25,6 +23,11 @@
           </tbody>
         </table>
       </div>
+    `;
+  }
+
+  function fieldMapSelectsHtml(colCount) {
+    return `
       <div class="section-title">字段映射</div>
       ${Array.from({ length: colCount }).map((_, i) => `
         <div class="field-map-row">
@@ -35,6 +38,11 @@
         </div>
       `).join('')}
     `;
+  }
+
+  function fieldMapSectionHtml(rows) {
+    const colCount = Math.max(...rows.map((r) => r.length), 1);
+    return previewTableHtml(rows, colCount) + fieldMapSelectsHtml(colCount);
   }
 
   function rowsToEntries(rows, hasHeader, mapping) {
@@ -229,13 +237,15 @@
         </div>
         <div class="card">
           <h3 style="margin-top:0">3. 预览与字段映射</h3>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">以下映射设置将应用于所有选中的工作表（假定各工作表列结构一致）</div>
-          <label class="field">预览工作表
-            <select id="preview-sheet-picker">
-              ${workbook.sheets.map((s, i) => `<option value="${i}">${App.escapeHtml(s.name)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="checkbox-row" style="margin-bottom:14px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">以下映射设置将统一应用于所有选中导入的工作表（假定各工作表列结构一致）。可多选下面的工作表用于预览对照，帮助确认映射是否正确。</div>
+          <div class="section-title" style="margin-top:0">预览工作表（可多选）</div>
+          ${workbook.sheets.map((s, i) => `
+            <label class="checkbox-row" style="margin-bottom:6px">
+              <input type="checkbox" class="preview-sheet-check" data-sheet="${i}" ${i === 0 ? 'checked' : ''}>
+              <span>${App.escapeHtml(s.name)}</span>
+            </label>
+          `).join('')}
+          <label class="checkbox-row" style="margin:10px 0 14px">
             <input type="checkbox" id="has-header">
             <span>首行是表头（不作为单词导入）</span>
           </label>
@@ -252,12 +262,22 @@
       `;
 
       const fieldMapRoot = previewSection.querySelector('#field-map-root');
-      const previewPicker = previewSection.querySelector('#preview-sheet-picker');
+      const previewChecks = Array.from(previewSection.querySelectorAll('.preview-sheet-check'));
       async function drawFieldMap() {
-        const rows = await getRows(Number(previewPicker.value));
-        fieldMapRoot.innerHTML = fieldMapSectionHtml(rows);
+        const selectedIndexes = previewChecks.filter((c) => c.checked).map((c) => Number(c.dataset.sheet));
+        if (selectedIndexes.length === 0) {
+          fieldMapRoot.innerHTML = '<div class="empty-state">请至少选择一个工作表用于预览</div>';
+          return;
+        }
+        const rowsPerSheet = await Promise.all(selectedIndexes.map((i) => getRows(i)));
+        const colCount = Math.max(...rowsPerSheet.flat().map((r) => r.length), 1);
+        const tablesHtml = selectedIndexes.map((sheetIdx, k) => `
+          <div class="section-title" style="margin-top:${k === 0 ? '0' : '18px'}">${App.escapeHtml(workbook.sheets[sheetIdx].name)}</div>
+          ${previewTableHtml(rowsPerSheet[k], colCount)}
+        `).join('');
+        fieldMapRoot.innerHTML = tablesHtml + fieldMapSelectsHtml(colCount);
       }
-      previewPicker.addEventListener('change', drawFieldMap);
+      previewChecks.forEach((c) => c.addEventListener('change', drawFieldMap));
       drawFieldMap();
 
       previewSection.querySelector('#btn-do-import').addEventListener('click', async () => {
