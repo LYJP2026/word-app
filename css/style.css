@@ -121,7 +121,11 @@ body {
 .view-root {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 12px calc(var(--nav-height) + env(safe-area-inset-bottom) + 16px);
+  /* --nav-actual-height is measured live from the real bottom-nav element
+     (see app.js syncNavHeight) so this can never drift out of sync with it,
+     regardless of device safe-area insets or font/icon rendering. The
+     calc() fallback is only used for the first paint before JS runs. */
+  padding: 12px 12px calc(var(--nav-actual-height, calc(var(--nav-height) + env(safe-area-inset-bottom))) + 16px);
   -webkit-overflow-scrolling: touch;
 }
 

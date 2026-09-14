@@ -249,6 +249,16 @@
 
   window.addEventListener('hashchange', render);
 
+  // Measures the bottom nav's REAL rendered height (icons/emoji/font
+  // rendering and safe-area insets vary enough across phones that a
+  // hardcoded CSS value can't be trusted) and exposes it as a custom
+  // property so scrollable content always reserves exactly enough space
+  // to clear it, with no possibility of drifting out of sync.
+  function syncNavHeight() {
+    const h = bottomNav.offsetHeight;
+    if (h > 0) document.documentElement.style.setProperty('--nav-actual-height', h + 'px');
+  }
+
   window.addEventListener('DOMContentLoaded', async () => {
     if ('serviceWorker' in navigator) {
       try { await navigator.serviceWorker.register('sw.js'); } catch (e) { /* ignore in dev */ }
@@ -258,6 +268,12 @@
     })();
     applyTheme(savedTheme);
     render();
+    syncNavHeight();
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(syncNavHeight).observe(bottomNav);
+    } else {
+      window.addEventListener('resize', syncNavHeight);
+    }
     try { Notify.startWatcher(); } catch (e) { /* ignore */ }
   });
 
