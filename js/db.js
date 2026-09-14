@@ -189,6 +189,20 @@
     await deleteVocabularyBulk(words.map((w) => w.id));
   }
 
+  // Wipes only the learning/review progress for a library's words (so "开始
+  // 学习" treats them all as brand new again) without touching the words
+  // themselves — used by "从头再学".
+  async function resetLibraryProgress(libraryId) {
+    const words = await listVocabulary(libraryId);
+    const t = await tx('studyRecords', 'readwrite');
+    const store = t.objectStore('studyRecords');
+    for (const w of words) store.delete(w.id);
+    return new Promise((resolve, reject) => {
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+  }
+
   // ---------- Study Records ----------
   async function getStudyRecord(vocabularyId) {
     const t = await tx('studyRecords', 'readonly');
@@ -348,7 +362,7 @@
     todayStr, addDays, nowISO,
     createLibrary, getOrCreateLibraryByName, listLibraries, getLibrary, renameLibrary, deleteLibrary,
     addVocabulary, bulkAddVocabulary, listVocabulary, getVocabularyItem, updateVocabulary,
-    deleteVocabulary, deleteVocabularyBulk, clearLibraryVocabulary,
+    deleteVocabulary, deleteVocabularyBulk, clearLibraryVocabulary, resetLibraryProgress,
     getStudyRecord, getAllStudyRecords, putStudyRecord, recordInitialLearning, recordReviewOutcome,
     getSetting, setSetting, exportAll, importAllReplace, clearAllData,
     bumpDailyCounter, getDailyCounter, getAllDailyCounters,

@@ -173,7 +173,15 @@
   }
 
   function navigate(path) {
-    location.hash = path;
+    // Setting location.hash to the value it already has does NOT fire
+    // 'hashchange', so a "restart this same screen" action (e.g. study a
+    // library again right after finishing it) would otherwise look like it
+    // did nothing. Force a re-render ourselves in that case.
+    if (location.hash === '#' + path) {
+      render();
+    } else {
+      location.hash = path;
+    }
   }
 
   function goBack() {

@@ -45,12 +45,25 @@
             <span style="color:var(--text-muted);font-size:13px">›</span>
           </div>
           <div style="font-size:13px;color:var(--text-muted);margin-top:6px">共 ${total} 词 · ${newCount} 个尚未学习</div>
+          ${total > 0 && newCount === 0 ? `<button class="btn secondary block" style="margin-top:10px" data-restart-lib="${lib.id}">从头再学</button>` : ''}
         </div>
       `).join('')}
     `;
 
     root.querySelectorAll('.card[data-lib-id]').forEach((card) => {
       card.addEventListener('click', () => App.navigate('/study?lib=' + card.dataset.libId));
+    });
+
+    root.querySelectorAll('[data-restart-lib]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const libId = Number(btn.dataset.restartLib);
+        const lib = libraries.find((l) => l.id === libId);
+        const ok = await App.confirmDialog('从头再学', `确定要重新学习「${lib.name}」吗？该词库的学习进度和复习计划将被清空，单词本身不会被删除。`, { confirmLabel: '确定重新学习' });
+        if (!ok) return;
+        await DB.resetLibraryProgress(libId);
+        App.navigate('/study?lib=' + libId);
+      });
     });
   }
 
@@ -61,6 +74,24 @@
     const learnedIds = new Set(records.map((r) => r.vocabulary_id));
     const newWords = words.filter((w) => !learnedIds.has(w.id));
     const dailyGoal = await DB.getSetting('dailyGoal', 20);
+
+    if (newWords.length === 0) {
+      const lib = libraries.find((l) => l.id === libId);
+      root.innerHTML = `
+        <div class="empty-state">
+          <div class="emoji">🎉</div>
+          <p>「${App.escapeHtml(lib ? lib.name : '')}」的单词已经全部学习完毕</p>
+          <div style="color:var(--text-muted);font-size:13px">请返回词库重新选择学习内容，或前往复习</div>
+          <div class="btn-row" style="margin-top:16px">
+            <button class="btn secondary" id="go-library">返回词库</button>
+            <button class="btn" id="go-review">去复习</button>
+          </div>
+        </div>
+      `;
+      root.querySelector('#go-library').addEventListener('click', () => App.navigate('/library'));
+      root.querySelector('#go-review').addEventListener('click', () => App.navigate('/review'));
+      return;
+    }
 
     root.innerHTML = `
       <div class="card">
@@ -78,29 +109,22 @@
         <label class="checkbox-row" style="margin-bottom:16px">
           <input type="checkbox" id="shuffle-check" checked><span>随机顺序展示</span>
         </label>
-        <button class="btn" id="btn-start" ${newWords.length === 0 ? 'disabled' : ''}>开始学习</button>
+        <button class="btn" id="btn-start">开始学习</button>
       </div>
-      ${newWords.length === 0 ? `<div class="empty-state"><div class="emoji">🎉</div><p>该词库所有单词都已开始学习</p>
-        <button class="btn secondary" id="go-review">去复习</button></div>` : ''}
     `;
 
     root.querySelector('#lib-select').addEventListener('change', (e) => {
       App.navigate('/study?lib=' + e.target.value);
     });
-    const goReview = root.querySelector('#go-review');
-    if (goReview) goReview.addEventListener('click', () => App.navigate('/review'));
 
-    const startBtn = root.querySelector('#btn-start');
-    if (startBtn) {
-      startBtn.addEventListener('click', () => {
-        let count = Number(root.querySelector('#count-input').value) || 1;
-        count = Math.min(Math.max(count, 1), newWords.length);
-        const shuffle = root.querySelector('#shuffle-check').checked;
-        let pool = newWords.slice(0, count);
-        if (shuffle) pool = shuffleArray(newWords).slice(0, count);
-        showDirectionModal(root, libId, pool);
-      });
-    }
+    root.querySelector('#btn-start').addEventListener('click', () => {
+      let count = Number(root.querySelector('#count-input').value) || 1;
+      count = Math.min(Math.max(count, 1), newWords.length);
+      const shuffle = root.querySelector('#shuffle-check').checked;
+      let pool = newWords.slice(0, count);
+      if (shuffle) pool = shuffleArray(newWords).slice(0, count);
+      showDirectionModal(root, libId, pool);
+    });
   }
 
   // Asked every time right before a session starts: which side of the card
