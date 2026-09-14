@@ -7,6 +7,13 @@
   const bottomNav = document.getElementById('bottom-nav');
   const reviewBadge = document.getElementById('review-badge');
   const toastRoot = document.getElementById('toast-root');
+  const judgeBar = document.getElementById('judge-bar');
+  const judgeBtnNo = document.getElementById('judge-btn-no');
+  const judgeBtnYes = document.getElementById('judge-btn-yes');
+  let judgeNoHandler = null;
+  let judgeYesHandler = null;
+  judgeBtnNo.addEventListener('click', () => { if (judgeNoHandler) judgeNoHandler(); });
+  judgeBtnYes.addEventListener('click', () => { if (judgeYesHandler) judgeYesHandler(); });
 
   const state = {
     currentLibraryId: null,
@@ -188,6 +195,29 @@
     history.back();
   }
 
+  // Shows the persistent "认识/不认识" bar, pinned above the bottom nav
+  // regardless of scroll position or page height — used by study / review /
+  // self-study while a flashcard is on screen. `onYes`/`onNo` are rebound on
+  // every call so each new card wires up fresh without recreating any DOM.
+  function showJudgeBar(onYes, onNo) {
+    judgeYesHandler = onYes;
+    judgeNoHandler = onNo;
+    judgeBar.classList.remove('hidden');
+    syncJudgeBarHeight();
+  }
+
+  function hideJudgeBar() {
+    judgeBar.classList.add('hidden');
+    judgeYesHandler = null;
+    judgeNoHandler = null;
+    syncJudgeBarHeight();
+  }
+
+  function syncJudgeBarHeight() {
+    const h = judgeBar.classList.contains('hidden') ? 0 : judgeBar.offsetHeight;
+    document.documentElement.style.setProperty('--judge-bar-height', h + 'px');
+  }
+
   async function refreshBadge() {
     try {
       const records = await DB.getAllStudyRecords(null);
@@ -220,6 +250,7 @@
 
   async function render() {
     closeModal();
+    hideJudgeBar();
     const { top, segs, query } = parseHash();
     highlightNav(['dashboard', 'library', 'selfstudy', 'review', 'stats', 'settings'].includes(top) ? top : null);
     const viewKey = VIEW_MAP[top] || 'dashboard';
@@ -269,10 +300,12 @@
     applyTheme(savedTheme);
     render();
     syncNavHeight();
+    syncJudgeBarHeight();
     if ('ResizeObserver' in window) {
       new ResizeObserver(syncNavHeight).observe(bottomNav);
+      new ResizeObserver(syncJudgeBarHeight).observe(judgeBar);
     } else {
-      window.addEventListener('resize', syncNavHeight);
+      window.addEventListener('resize', () => { syncNavHeight(); syncJudgeBarHeight(); });
     }
     try { Notify.startWatcher(); } catch (e) { /* ignore */ }
   });
@@ -287,5 +320,6 @@
   global.App = {
     state, escapeHtml, toast, openModal, closeModal, confirmDialog, openWordEditModal, setHeader,
     navigate, goBack, refreshBadge, render, applyTheme, speak, bindSpeakButtons, buildFlashcardFace,
+    showJudgeBar, hideJudgeBar,
   };
 })(window);

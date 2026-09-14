@@ -191,10 +191,6 @@
             <div class="study-card-face study-card-back">${backHtml}</div>
           </div>
         </div>
-        <div class="judge-row">
-          <button class="judge-btn no" id="btn-no">✗ 不认识</button>
-          <button class="judge-btn yes" id="btn-yes">✓ 认识</button>
-        </div>
       `;
       const cardEl = root.querySelector('#study-card');
       cardEl.addEventListener('click', () => {
@@ -202,8 +198,7 @@
         cardEl.classList.toggle('flipped', flipped);
       });
       App.bindSpeakButtons(root);
-      root.querySelector('#btn-yes').addEventListener('click', () => judge(true));
-      root.querySelector('#btn-no').addEventListener('click', () => judge(false));
+      App.showJudgeBar(() => judge(true), () => judge(false));
     }
 
     async function judge(recognized) {
@@ -220,6 +215,7 @@
     }
 
     function showSummary() {
+      App.hideJudgeBar();
       const total = correct + wrong;
       const rate = total ? Math.round((correct / total) * 100) : 0;
       root.innerHTML = `
